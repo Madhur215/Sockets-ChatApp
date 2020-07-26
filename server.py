@@ -12,38 +12,35 @@ DISCONNECT = "quit"
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(ADDRESS)
-clients_list = []
+clients = {}
+addresses = {}
 
 
-def handle_client(conn, address):
+def handle_client(conn):
+    """Handles a single client"""
+    name = conn.recv(HEADER).decode(FORMAT)
     print("[CONNECTED!]")
-    connected = True
-    while connected:
-        try:
-            message = conn.recv(2048)
-            if message:
-                print(address[0] + ">> " + "message")
-                if message == DISCONNECT:
-                    connected = False
-                send_message(message, conn)
-        except:
-            continue
-    conn.close()
+    welcome_msg = f"Welcome {name}! To exit the chat enter [quit]"
+    conn.send(bytes(welcome_msg, FORMAT))
+    message = f"{name} has joined the chat!"
+    send_message(message.encode(FORMAT))
+    clients[conn] = name
+    while True:
+        msg = conn.recv(HEADER)
+        if msg != DISCONNECT.encode(FORMAT):
+            send_message(msg, name + ":")
+        else:
+            conn.send(DISCONNECT.encode(FORMAT))
+            conn.close()
+            del clients[conn]
+            send_message(f"{name} has left the chat!".encode(FORMAT))
+            break
 
 
-def send_message(message, conn):
-    for client in clients_list:
-        if client != conn:
-            try:
-                client.send(message)
-            except:
-                client.close()
-                remove(client)
-
-
-def remove(conn):
-    if conn in clients_list:
-        clients_list.remove(conn)
+def send_message(message, name=""):
+    """Send message to all the clients"""
+    for client in clients:
+        client.send(bytes(name, FORMAT)+message)
 
 
 def run_server():
@@ -52,8 +49,13 @@ def run_server():
 
     while True:
         conn, address = server.accept()
-        clients_list.append(conn)
-        thread = threading.Thread(target=handle_client, args=(conn, address))
+        conn.send(bytes("Welcome! Please type your name and hit enter!", "utf-8"))
+        addresses[conn] = address
+        thread = threading.Thread(target=handle_client, args=(conn,))
         thread.start()
         print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
+
+
+if __name__ == "__main__":
+    run_server()
 
