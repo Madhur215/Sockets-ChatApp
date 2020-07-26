@@ -1,10 +1,9 @@
 import socket
-import select
 import threading
 
 PORT = 5050
 IP = socket.gethostbyname(socket.gethostname())
-HEADER = 64
+HEADER = 2048
 FORMAT = 'utf-8'
 ADDRESS = (IP, PORT)
 DISCONNECT = "quit"
